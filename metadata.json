@@ -1,0 +1,5 @@
+{
+  "name": "Dungeon Platformer",
+  "description": "A 2D dungeon platformer game with multiple levels, save/load functionality, hazards, and collectibles.",
+  "requestFramePermissions": []
+}
