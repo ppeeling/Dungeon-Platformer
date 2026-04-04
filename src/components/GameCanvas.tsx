@@ -465,6 +465,50 @@ export const GameCanvas: React.FC = () => {
           ctx.beginPath();
           ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/4, 0, Math.PI * 2);
           ctx.fill();
+        } else if (e.type === 'collapsing_platform') {
+          ctx.fillStyle = '#8B4513'; // Brown
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          // Cracks
+          ctx.strokeStyle = '#5D2E0C';
+          ctx.beginPath();
+          ctx.moveTo(e.x + 4, e.y + 4);
+          ctx.lineTo(e.x + 12, e.y + 12);
+          ctx.moveTo(e.x + 20, e.y + 2);
+          ctx.lineTo(e.x + 16, e.y + 10);
+          ctx.stroke();
+          // Shake effect if timer > 0
+          if (e.timer && e.timer > 0 && e.timer < 0.5) {
+            const shake = Math.sin(time / 10) * 2;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillRect(e.x + shake, e.y, e.w, e.h);
+          }
+        } else if (e.type === 'laser_beam') {
+          if (e.state === 'on') {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.fillRect(e.x, e.y, e.w, e.h);
+            // Glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#F00';
+            ctx.fillRect(e.x + 1, e.y, e.w - 2, e.h);
+            ctx.shadowBlur = 0;
+          } else {
+            // Faint indicator
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+            ctx.fillRect(e.x, e.y, e.w, e.h);
+          }
+        } else if (e.type === 'toxic_gas') {
+          const pulse = Math.sin(time / 200) * 0.1;
+          ctx.fillStyle = `rgba(0, 255, 0, ${0.3 + pulse})`;
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          // Bubbles
+          ctx.fillStyle = 'rgba(0, 200, 0, 0.4)';
+          for (let i = 0; i < 3; i++) {
+            const bx = e.x + (Math.sin(time / 500 + i) + 1) * (e.w / 2);
+            const by = e.y + (Math.cos(time / 300 + i) + 1) * (e.h / 2);
+            ctx.beginPath();
+            ctx.arc(bx, by, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
         } else if (e.type === 'rainbow_explosion') {
           if (e.timer !== undefined && e.maxTimer !== undefined) {
             const progress = 1 - (e.timer / e.maxTimer);

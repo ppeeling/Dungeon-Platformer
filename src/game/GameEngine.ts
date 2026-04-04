@@ -153,7 +153,7 @@ export class GameEngine {
         } else if (char === 'B') {
           this.state.entities.push({ type: 'boss', x: px, y: py - 32, w: 64, h: 64, vx: 80, hp: 5 });
         } else if (char === 'Z') {
-          this.state.entities.push({ type: 'boss2', x: px, y: py - 64, w: 96, h: 96, vx: 100, hp: 15, startX: px });
+          this.state.entities.push({ type: 'boss2', x: px, y: py - 64, w: 96, h: 96, vx: 100, hp: 5, startX: px });
         } else if (char === 'X') {
           this.state.entities.push({ type: 'green_boss', x: px, y: py - 64, w: 96, h: 96, vx: 150, hp: 20, startX: px });
         } else if (char === 'Y') {
@@ -172,6 +172,12 @@ export class GameEngine {
           this.state.entities.push({ type: 'powerup_jump', x: px + 8, y: py + 8, w: 16, h: 16 });
         } else if (char === 'I') {
           this.state.entities.push({ type: 'powerup_invincibility', x: px + 8, y: py + 8, w: 16, h: 16 });
+        } else if (char === '[') {
+          this.state.entities.push({ type: 'collapsing_platform', x: px, y: py, w: TILE_SIZE, h: 16, timer: 0 });
+        } else if (char === '|') {
+          this.state.entities.push({ type: 'laser_beam', x: px + 14, y: py, w: 4, h: TILE_SIZE, timer: Math.random() * 3, state: 'off' });
+        } else if (char === '*') {
+          this.state.entities.push({ type: 'toxic_gas', x: px, y: py, w: TILE_SIZE, h: TILE_SIZE, timer: 0 });
         }
       }
     }
@@ -968,6 +974,53 @@ export class GameEngine {
         if (e.x < this.state.cameraX - 100 || e.x > this.state.cameraX + 900) {
           e.vx = -(e.vx || 0);
         }
+      } else if (e.type === 'collapsing_platform') {
+        // Check if player is on top
+        const playerOnTop = p.vy >= 0 && 
+                           p.y + p.h <= e.y + 5 && 
+                           p.y + p.h >= e.y - 5 &&
+                           p.x + p.w > e.x && 
+                           p.x < e.x + e.w;
+        
+        if (playerOnTop || (e.timer !== undefined && e.timer > 0)) {
+          e.timer = (e.timer || 0) + dt;
+          if (e.timer > 0.5) { // 0.5s delay
+            e.vy = (e.vy || 0) + 1000 * dt;
+            e.y += e.vy * dt;
+          }
+        }
+        // Remove if off screen
+        if (e.y > 600) e.collected = true;
+      } else if (e.type === 'laser_beam') {
+        e.timer = (e.timer || 0) + dt;
+        const cycle = 3.0;
+        const onTime = 1.5;
+        if (e.timer % cycle < onTime) {
+          e.state = 'on';
+          if (this.checkRectCollision(p, e as Rect)) {
+            if (p.invulnerableTimer <= 0 && p.powerInvulnTimer <= 0) {
+              p.hp -= 1;
+              p.invulnerableTimer = 1.0;
+              if (p.hp <= 0) this.state.isGameOver = true;
+            }
+          }
+        } else {
+          e.state = 'off';
+        }
+      } else if (e.type === 'toxic_gas') {
+        if (this.checkRectCollision(p, e as Rect)) {
+          e.timer = (e.timer || 0) + dt;
+          if (e.timer > 1.0) { // Damage every 1 second
+            if (p.invulnerableTimer <= 0 && p.powerInvulnTimer <= 0) {
+              p.hp -= 1;
+              p.invulnerableTimer = 1.0;
+              if (p.hp <= 0) this.state.isGameOver = true;
+            }
+            e.timer = 0;
+          }
+        } else {
+          e.timer = 0;
+        }
       }
 
       // Check spawned monster limit
@@ -1057,23 +1110,37 @@ export class GameEngine {
   handleCollisions(isX: boolean) {
     const p = this.state.player;
     for (const w of this.state.walls) {
-      if (this.checkRectCollision(p, w)) {
-        if (isX) {
-          if (p.vx > 0) {
-            p.x = w.x - p.w;
-          } else if (p.vx < 0) {
-            p.x = w.x + w.w;
-          }
-          p.vx = 0;
-        } else {
-          if (p.vy > 0) {
-            p.y = w.y - p.h;
-            p.isGrounded = true;
-          } else if (p.vy < 0) {
-            p.y = w.y + w.h;
-          }
-          p.vy = 0;
+      this.checkWallCollision(p, w, isX);
+    }
+    
+    // Check collapsing platforms
+    for (const e of this.state.entities) {
+      if (e.type === 'collapsing_platform' && !e.collected) {
+        // Only collide if not falling too fast
+        if (e.vy === undefined || e.vy < 100) {
+          this.checkWallCollision(p, e as Rect, isX);
         }
+      }
+    }
+  }
+
+  checkWallCollision(p: Player, w: Rect, isX: boolean) {
+    if (this.checkRectCollision(p, w)) {
+      if (isX) {
+        if (p.vx > 0) {
+          p.x = w.x - p.w;
+        } else if (p.vx < 0) {
+          p.x = w.x + w.w;
+        }
+        p.vx = 0;
+      } else {
+        if (p.vy > 0) {
+          p.y = w.y - p.h;
+          p.isGrounded = true;
+        } else if (p.vy < 0) {
+          p.y = w.y + w.h;
+        }
+        p.vy = 0;
       }
     }
   }
