@@ -893,7 +893,7 @@ export class GameEngine {
             if (e.hp <= 0) {
               e.collected = true;
               this.state.score += 1000;
-              this.state.entities.push({ type: 'key', x: e.x + e.w / 2 - 8, y: e.y + e.h / 2 - 8, w: 16, h: 16 });
+              this.state.entities.push({ type: 'key', x: e.x + e.w / 2 - 8, y: e.y + e.h / 2 - 8 + 32, w: 16, h: 16 });
               this.state.entities.push({ type: 'explosion', x: e.x + e.w / 2, y: e.y + e.h / 2, w: 0, h: 0, timer: 0.5, maxTimer: 0.5 });
             } else {
               e.x += p.vx > 0 ? 10 : -10;
@@ -921,7 +921,8 @@ export class GameEngine {
                   x: Math.floor(impactX / TILE_SIZE + i) * TILE_SIZE,
                   y: Math.floor(impactY / TILE_SIZE) * TILE_SIZE,
                   w: TILE_SIZE,
-                  h: TILE_SIZE
+                  h: TILE_SIZE,
+                  timer: 5.0 // Temporary lava lasts 5 seconds
                 });
               }
             }
@@ -1031,7 +1032,7 @@ export class GameEngine {
           m.collected = true;
           this.state.entities.push({ type: 'explosion', x: m.x + m.w / 2, y: m.y + m.h / 2, w: 0, h: 0, timer: 0.3, maxTimer: 0.3 });
         }
-      } else if (e.type === 'explosion' || e.type === 'rainbow_explosion') {
+      } else if (e.type === 'explosion' || e.type === 'rainbow_explosion' || e.type === 'lava') {
         if (e.timer !== undefined) {
           e.timer -= dt;
           if (e.timer <= 0) {
