@@ -65,7 +65,26 @@ export interface GameState {
     color: string;
     headbandColor: string;
   };
+  currentAvatarId: string;
+  ownedAvatarIds: string[];
 }
+
+export interface Avatar {
+  id: string;
+  name: string;
+  cost: number;
+  description: string;
+  color: string;
+  headbandColor: string;
+  type: 'default' | 'cat' | 'dog' | 'ninja';
+}
+
+export const AVATARS: Avatar[] = [
+  { id: 'default', name: 'Hero', cost: 0, description: 'The standard hero.', color: '#4CAF50', headbandColor: '#E53935', type: 'default' },
+  { id: 'cat', name: 'Cat', cost: 500, description: 'Climbs walls 50% faster.', color: '#FF9800', headbandColor: '#3E2723', type: 'cat' },
+  { id: 'dog', name: 'Dog', cost: 500, description: 'Jumps 25% higher.', color: '#795548', headbandColor: '#FFEB3B', type: 'dog' },
+  { id: 'ninja', name: 'Ninja', cost: 1000, description: 'Runs 30% faster.', color: '#212121', headbandColor: '#B71C1C', type: 'ninja' },
+];
 
 export class GameEngine {
   state: GameState;
@@ -92,7 +111,9 @@ export class GameEngine {
       playerConfig: {
         color: '#4CAF50',
         headbandColor: '#E53935'
-      }
+      },
+      currentAvatarId: 'default',
+      ownedAvatarIds: ['default']
     };
   }
 
@@ -156,6 +177,12 @@ export class GameEngine {
           this.state.entities.push({ type: 'boss2', x: px, y: py - 64, w: 96, h: 96, vx: 100, hp: 5, startX: px });
         } else if (char === 'X') {
           this.state.entities.push({ type: 'green_boss', x: px, y: py - 64, w: 96, h: 96, vx: 150, hp: 20, startX: px });
+        } else if (char === 'R') {
+          this.state.entities.push({ type: 'red_boss', x: px, y: py - 64, w: 96, h: 96, vx: 120, hp: 25, attackTimer: 2 });
+        } else if (char === 'P') {
+          this.state.entities.push({ type: 'purple_boss', x: px, y: py - 64, w: 96, h: 96, vx: 0, hp: 30, attackTimer: 3, timer: 4 });
+        } else if (char === 'S') {
+          this.state.entities.push({ type: 'silver_boss', x: px, y: py - 64, w: 96, h: 96, vx: 300, hp: 35, state: 'dashing', timer: 2 });
         } else if (char === 'Y') {
           this.state.entities.push({ type: 'yellow_monster', x: px + 4, y: py + 8, w: 24, h: 24, vx: 100, hp: 1, jumpTimer: 0 });
         } else if (char === 'W') {
@@ -242,8 +269,16 @@ export class GameEngine {
     }
 
     // Input
-    const speed = p.speedTimer > 0 ? 350 : 200;
-    const jumpForce = p.jumpTimer > 0 ? -600 : -400;
+    const currentAvatar = AVATARS.find(a => a.id === this.state.currentAvatarId) || AVATARS[0];
+    let speed = p.speedTimer > 0 ? 350 : 200;
+    if (currentAvatar.type === 'ninja') speed *= 1.3;
+
+    let jumpForce = p.jumpTimer > 0 ? -600 : -400;
+    if (currentAvatar.type === 'dog') jumpForce *= 1.25;
+
+    let climbSpeed = 150;
+    if (currentAvatar.type === 'cat') climbSpeed *= 1.5;
+
     p.isBlocking = this.keys['b'] || this.keys['B'];
     
     if (this.keys['f'] || this.keys['F']) {
@@ -271,8 +306,8 @@ export class GameEngine {
 
         if (p.onLadder || p.isClimbingWall) {
           p.vy = 0;
-          if (this.keys['ArrowUp'] || this.keys['w']) p.vy = -150;
-          else if (this.keys['ArrowDown'] || this.keys['s']) p.vy = 150;
+          if (this.keys['ArrowUp'] || this.keys['w']) p.vy = -climbSpeed;
+          else if (this.keys['ArrowDown'] || this.keys['s']) p.vy = climbSpeed;
           
           // Wall Jump
           if ((this.keys['ArrowUp'] || this.keys['w'] || this.keys[' ']) && p.isClimbingWall) {
@@ -329,10 +364,10 @@ export class GameEngine {
     for (const e of this.state.entities) {
       if (e.collected) continue;
 
-      if (e.type === 'monster' || e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss') {
+      if (e.type === 'monster' || e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') {
         // Check if yellow monster is on a ladder
         let onLadder = false;
-        if (e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'yellow_boss' || e.type === 'white_boss') {
+        if (e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') {
           for (const l of this.state.entities) {
             if (l.type === 'ladder' && this.checkRectCollision(e as Rect, l as Rect)) {
               onLadder = true;
@@ -342,7 +377,7 @@ export class GameEngine {
         }
 
         // Apply gravity if not on ladder and not flying and not climbing
-        if (!onLadder && e.state !== 'flying' && e.type !== 'black_boss' && !e.isClimbing) {
+        if (!onLadder && e.state !== 'flying' && e.type !== 'black_boss' && e.type !== 'purple_boss' && !e.isClimbing) {
           e.vy = (e.vy || 0) + 1000 * dt;
           if (e.vy > 600) e.vy = 600;
         } else if (onLadder) {
@@ -372,7 +407,7 @@ export class GameEngine {
         }
 
         // Yellow monster jump logic
-        if ((e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'yellow_boss' || e.type === 'blue_monster') && isGrounded && !onLadder) {
+        if ((e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'yellow_boss' || e.type === 'blue_monster' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') && isGrounded && !onLadder) {
           e.jumpTimer = (e.jumpTimer || 0) - dt;
           if (e.jumpTimer <= 0) {
             // Randomly jump
@@ -412,7 +447,7 @@ export class GameEngine {
         }
 
         if (hitWall || (isGrounded && !hasFloor)) {
-          if (e.type === 'blue_monster' && hitWall) {
+          if ((e.type === 'blue_monster' || e.type === 'silver_boss') && hitWall) {
             e.isClimbing = true;
             e.vy = -150;
           } else {
@@ -441,8 +476,8 @@ export class GameEngine {
         }
 
         // Green boss chase logic
-        if (e.type === 'green_boss' || e.type === 'yellow_boss') {
-          const speed = e.type === 'yellow_boss' ? 200 : 150;
+        if (e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') {
+          const speed = e.type === 'yellow_boss' ? 200 : (e.type === 'silver_boss' ? 300 : 150);
           if (p.x < e.x) {
             e.vx = -speed;
           } else {
@@ -707,6 +742,63 @@ export class GameEngine {
           }
         }
 
+        if (e.type === 'red_boss') {
+          e.attackTimer = (e.attackTimer || 0) - dt;
+          if (e.attackTimer <= 0) {
+            e.attackTimer = 2.0;
+            const dx = p.x - (e.x + e.w / 2);
+            const dy = p.y - (e.y + e.h / 2);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 800) {
+              this.state.entities.push({
+                type: 'tracking_projectile',
+                x: e.x + e.w / 2 - 16,
+                y: e.y + e.h / 2 - 16,
+                w: 32,
+                h: 32,
+                vx: dist > 0 ? (dx / dist) * 150 : 0,
+                vy: dist > 0 ? (dy / dist) * 150 : 0,
+                timer: 5.0
+              });
+            }
+          }
+        }
+
+        if (e.type === 'purple_boss') {
+          e.timer = (e.timer || 0) - dt;
+          if (e.timer <= 0) {
+            e.timer = 4.0;
+            // Teleport
+            e.x = Math.random() * 600 + 100 + this.state.cameraX;
+            e.y = Math.random() * 200 + 100;
+            // Spread shot
+            for (let i = -2; i <= 2; i++) {
+              const angle = Math.PI / 2 + (i * Math.PI / 8);
+              this.state.entities.push({
+                type: 'boss_projectile',
+                x: e.x + e.w / 2 - 16,
+                y: e.y + e.h / 2 - 16,
+                w: 32,
+                h: 32,
+                vx: Math.cos(angle) * 200,
+                vy: Math.sin(angle) * 200
+              });
+            }
+          }
+        }
+
+        if (e.type === 'silver_boss') {
+          e.timer = (e.timer || 0) - dt;
+          if (e.timer <= 0) {
+            e.timer = 2.0;
+            e.vx = (e.vx || 0) > 0 ? -400 : 400;
+          }
+          e.x += (e.vx || 0) * dt;
+          // Bounce off screen edges
+          if (e.x < this.state.cameraX && (e.vx || 0) < 0) e.vx = 400;
+          if (e.x > this.state.cameraX + 800 - e.w && (e.vx || 0) > 0) e.vx = -400;
+        }
+
         // Check attack collision
         if ((p.isAttacking || p.isDownwardAttacking) && this.checkRectCollision(attackRect, e as Rect)) {
           if (e.hp !== undefined) {
@@ -715,27 +807,38 @@ export class GameEngine {
             p.isDownwardAttacking = false;
             if (e.hp <= 0) {
               e.collected = true; // Monster dies
-              this.state.score += (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss') ? 500 : 50;
+              this.state.score += (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') ? 500 : 50;
               
+              if (this.state.levelIndex >= 100) {
+                this.state.entities.push({ type: 'key', x: e.x + e.w / 2 - 8, y: e.y + e.h / 2 - 8, w: 16, h: 16 });
+              }
+
               if (e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster') {
                 const dir = p.x < e.x ? 1 : -1;
                 this.state.entities.push({ type: 'monster', x: e.x - 10, y: e.y, w: 24, h: 24, vx: dir * 100, vy: -400, hp: 1 });
                 this.state.entities.push({ type: 'monster', x: e.x + 10, y: e.y, w: 24, h: 24, vx: dir * 150, vy: -500, hp: 1 });
               } else if (e.type === 'green_boss' || e.type === 'yellow_boss') {
+                this.spawnCoins(e.x + e.w / 2, e.y + e.h / 2, 15);
                 this.state.entities.push({ type: 'explosion', x: e.x + e.w / 2, y: e.y + e.h / 2, w: 0, h: 0, timer: 0.5, maxTimer: 0.5 });
                 const splitsIntoType = e.type === 'yellow_boss' ? 'blue_monster' : 'green_monster';
                 this.state.entities.push({ type: 'boss', x: e.x - 30, y: e.y, w: 64, h: 64, vx: -80, vy: -400, hp: 5, splitsInto: splitsIntoType, isFromGreenBoss: true });
                 this.state.entities.push({ type: 'boss', x: e.x + 30, y: e.y, w: 64, h: 64, vx: 80, vy: -400, hp: 5, splitsInto: splitsIntoType, isFromGreenBoss: true });
               } else if (e.type === 'white_boss') {
+                this.spawnCoins(e.x + e.w / 2, e.y + e.h / 2, 20);
                 this.state.entities.push({ type: 'explosion', x: e.x + e.w / 2, y: e.y + e.h / 2, w: 0, h: 0, timer: 1.0, maxTimer: 1.0 });
                 this.state.entities.push({ type: 'black_boss', x: e.x, y: e.y, w: 96, h: 96, vx: 120, hp: 20, attackTimer: 3, spawnTimer: 3.5, state: 'walking', timer: 5 });
                 // Spawn recharge orbs
                 this.state.entities.push({ type: 'recharge_orb', x: 800, y: 100, w: 48, h: 48 });
                 this.state.entities.push({ type: 'recharge_orb', x: 2400, y: 100, w: 48, h: 48 });
               } else if (e.type === 'black_boss') {
+                this.spawnCoins(e.x + e.w / 2, e.y + e.h / 2, 50);
                 this.state.entities.push({ type: 'rainbow_explosion', x: e.x + e.w / 2, y: e.y + e.h / 2, w: 800, h: 480, timer: 5.0, maxTimer: 5.0 });
                 this.state.entities.push({ type: 'key', x: e.x + e.w / 2 - 8, y: e.y + e.h / 2 - 8, w: 16, h: 16 });
+              } else if (e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') {
+                this.spawnCoins(e.x + e.w / 2, e.y + e.h / 2, 25);
+                this.state.entities.push({ type: 'explosion', x: e.x + e.w / 2, y: e.y + e.h / 2, w: 0, h: 0, timer: 0.5, maxTimer: 0.5 });
               } else if (e.type === 'boss') {
+                this.spawnCoins(e.x + e.w / 2, e.y + e.h / 2, 10);
                 if (e.splitsInto === 'green_monster' || e.splitsInto === 'yellow_monster' || e.splitsInto === 'purple_monster' || e.splitsInto === 'blue_monster') {
                   const dir = p.x < e.x ? 1 : -1;
                   this.state.entities.push({ type: e.splitsInto, x: e.x - 20, y: e.y, w: 24, h: 24, vx: dir * 100, vy: -400, hp: 1 });
@@ -893,6 +996,7 @@ export class GameEngine {
             if (e.hp <= 0) {
               e.collected = true;
               this.state.score += 1000;
+              this.spawnCoins(e.x + e.w / 2, e.y + e.h / 2, 20);
               this.state.entities.push({ type: 'key', x: e.x + e.w / 2 - 8, y: e.y + e.h / 2 - 8 + 32, w: 16, h: 16 });
               this.state.entities.push({ type: 'explosion', x: e.x + e.w / 2, y: e.y + e.h / 2, w: 0, h: 0, timer: 0.5, maxTimer: 0.5 });
             } else {
@@ -1039,6 +1143,36 @@ export class GameEngine {
             e.collected = true;
           }
         }
+      } else if (e.type === 'coin') {
+        if (e.vx !== undefined || e.vy !== undefined) {
+          e.vy = (e.vy || 0) + 1000 * dt;
+          if (e.vy > 600) e.vy = 600;
+          
+          e.x += (e.vx || 0) * dt;
+          for (const w of this.state.walls) {
+            if (this.checkRectCollision(e as Rect, w)) {
+              if ((e.vx || 0) > 0) e.x = w.x - e.w;
+              else e.x = w.x + w.w;
+              e.vx = -(e.vx || 0) * 0.5;
+              break;
+            }
+          }
+          
+          e.y += (e.vy || 0) * dt;
+          for (const w of this.state.walls) {
+            if (this.checkRectCollision(e as Rect, w)) {
+              if ((e.vy || 0) > 0) {
+                e.y = w.y - e.h;
+                e.vy = -(e.vy || 0) * 0.5;
+                e.vx = (e.vx || 0) * 0.9;
+              } else {
+                e.y = w.y + w.h;
+                e.vy = 0;
+              }
+              break;
+            }
+          }
+        }
       }
 
       if (this.checkRectCollision(p, e as Rect)) {
@@ -1062,7 +1196,14 @@ export class GameEngine {
           p.powerInvulnTimer = 10;
         } else if (e.type === 'door') {
           if (p.hasKey) {
-            if (this.state.levelIndex === 19) {
+            if (this.state.levelIndex >= 100) {
+              const nextBossIndex = this.state.levelIndex - 100 + 1;
+              if (nextBossIndex >= 8) {
+                this.state.isGameComplete = true;
+              } else {
+                this.loadLevel(100 + nextBossIndex, this.state.score, true);
+              }
+            } else if (this.state.levelIndex === 19) {
               this.loadLevel(20, this.state.score, true);
             } else if (this.state.levelIndex >= 20) {
               this.state.isGameComplete = true;
@@ -1075,8 +1216,8 @@ export class GameEngine {
             p.vy = -800; // Big bounce
             p.isGrounded = false;
           }
-        } else if (e.type === 'spike' || e.type === 'lava' || e.type === 'monster' || e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'bat_monster' || e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'boss2' || e.type === 'flying_monster' || e.type === 'pellet' || e.type === 'boss_projectile' || e.type === 'boss2_pellet' || e.type === 'yellow_boss_projectile' || e.type === 'red_projectile' || e.type === 'tracking_projectile') {
-          if ((e.type === 'monster' || e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'bat_monster' || e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'boss2' || e.type === 'flying_monster' || e.type === 'boss_projectile' || e.type === 'pellet' || e.type === 'boss2_pellet' || e.type === 'yellow_boss_projectile' || e.type === 'red_projectile' || e.type === 'tracking_projectile') && p.isBlocking) {
+        } else if (e.type === 'spike' || e.type === 'lava' || e.type === 'monster' || e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'bat_monster' || e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'boss2' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss' || e.type === 'flying_monster' || e.type === 'pellet' || e.type === 'boss_projectile' || e.type === 'boss2_pellet' || e.type === 'yellow_boss_projectile' || e.type === 'red_projectile' || e.type === 'tracking_projectile') {
+          if ((e.type === 'monster' || e.type === 'green_monster' || e.type === 'yellow_monster' || e.type === 'purple_monster' || e.type === 'blue_monster' || e.type === 'bat_monster' || e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'boss2' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss' || e.type === 'flying_monster' || e.type === 'boss_projectile' || e.type === 'pellet' || e.type === 'boss2_pellet' || e.type === 'yellow_boss_projectile' || e.type === 'red_projectile' || e.type === 'tracking_projectile') && p.isBlocking) {
             // Blocked! Push player back
             p.vx = e.x > p.x ? -300 : 300;
             p.vy = -200;
@@ -1085,7 +1226,7 @@ export class GameEngine {
               e.collected = true; // destroy projectile on successful block
             }
           } else if (p.invulnerableTimer <= 0) {
-            p.hp -= (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'boss2') ? 2 : 1;
+            p.hp -= (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'white_boss' || e.type === 'black_boss' || e.type === 'boss2' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss') ? 2 : 1;
             p.invulnerableTimer = 1.0; // 1 second invulnerability
             p.vy = -300; // Knockback
             p.vx = e.x > p.x ? -200 : 200;
@@ -1170,6 +1311,8 @@ export class GameEngine {
       levelIndex: this.state.levelIndex,
       score: this.state.score,
       playerConfig: this.state.playerConfig,
+      currentAvatarId: this.state.currentAvatarId,
+      ownedAvatarIds: this.state.ownedAvatarIds,
     };
     localStorage.setItem('dungeon_save', JSON.stringify(save));
   }
@@ -1182,6 +1325,12 @@ export class GameEngine {
         if (save.playerConfig) {
           this.state.playerConfig = save.playerConfig;
         }
+        if (save.currentAvatarId) {
+          this.state.currentAvatarId = save.currentAvatarId;
+        }
+        if (save.ownedAvatarIds) {
+          this.state.ownedAvatarIds = save.ownedAvatarIds;
+        }
         this.loadLevel(save.levelIndex, save.score);
         return true;
       } catch (e) {
@@ -1189,5 +1338,46 @@ export class GameEngine {
       }
     }
     return false;
+  }
+
+  buyAvatar(avatarId: string) {
+    const avatar = AVATARS.find(a => a.id === avatarId);
+    if (!avatar) return false;
+    if (this.state.ownedAvatarIds.includes(avatarId)) return true;
+    if (this.state.score >= avatar.cost) {
+      this.state.score -= avatar.cost;
+      this.state.ownedAvatarIds.push(avatarId);
+      this.saveGame();
+      return true;
+    }
+    return false;
+  }
+
+  selectAvatar(avatarId: string) {
+    if (this.state.ownedAvatarIds.includes(avatarId)) {
+      this.state.currentAvatarId = avatarId;
+      const avatar = AVATARS.find(a => a.id === avatarId);
+      if (avatar) {
+        this.state.playerConfig.color = avatar.color;
+        this.state.playerConfig.headbandColor = avatar.headbandColor;
+      }
+      this.saveGame();
+      return true;
+    }
+    return false;
+  }
+
+  spawnCoins(x: number, y: number, count: number) {
+    for (let i = 0; i < count; i++) {
+      this.state.entities.push({
+        type: 'coin',
+        x: x - 8,
+        y: y - 8,
+        w: 16,
+        h: 16,
+        vx: (Math.random() - 0.5) * 300,
+        vy: -Math.random() * 500
+      });
+    }
   }
 }

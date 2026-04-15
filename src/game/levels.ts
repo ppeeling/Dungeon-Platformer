@@ -357,7 +357,12 @@ export function generateLevel(levelIndex: number): string[] {
   const isGreenBossLevel = levelIndex === 14; // 15th level
   const isFinalLevel = levelIndex === 19; // 20th level
   const isSecretLevel = levelIndex === 20; // 21st level
-  let keyPlaced = isBossLevel || isBlueBossLevel || isGreenBossLevel || isFinalLevel || isSecretLevel;
+  const isBossRush = levelIndex >= 100;
+  let keyPlaced = isBossLevel || isBlueBossLevel || isGreenBossLevel || isFinalLevel || isSecretLevel || isBossRush;
+
+  if (isBossRush) {
+    return generateBossRushLevel(levelIndex - 100);
+  }
 
   if (isSecretLevel) {
     // Secret level is just a big empty space with some laddered platforms
@@ -626,6 +631,64 @@ export function generateLevel(levelIndex: number): string[] {
     }
     level[y] = row.join('');
   }
+
+  return level;
+}
+
+export function generateBossRushLevel(bossIndex: number): string[] {
+  const height = 15;
+  const width = 100;
+  const level: string[] = Array(height).fill("");
+
+  // Boss sequence: Normal, Blue, Green, Red, Purple, Silver, White, Black
+  const bossChars = ['B', 'Z', 'X', 'R', 'P', 'S', 'V', 'W'];
+  const currentBoss = bossChars[Math.min(bossIndex, bossChars.length - 1)];
+
+  for (let i = 0; i < height; i++) {
+    let row = "";
+    if (i === 0 || i === height - 1 || i === height - 2) {
+      row = "#".repeat(width);
+    } else if (i === height - 3) {
+      row = "P" + ".".repeat(width - 2) + "#";
+    } else {
+      row = "#" + ".".repeat(width - 2) + "#";
+    }
+    level[i] = row;
+  }
+
+  // Place boss
+  let bossRow = level[11].split('');
+  bossRow[50] = currentBoss;
+  level[11] = bossRow.join('');
+
+  // Place door
+  let doorRow = level[11].split('');
+  doorRow[width - 5] = 'D';
+  level[11] = doorRow.join('');
+
+  // Add some platforms for mobility
+  const platformY = [8, 5];
+  for (const y of platformY) {
+    let row = level[y].split('');
+    for (let x = 30; x < 70; x++) {
+      if (x % 10 < 5) row[x] = '#';
+    }
+    level[y] = row.join('');
+  }
+
+  // Add some powerups
+  let powerRow = level[11].split('');
+  powerRow[20] = 'H';
+  powerRow[30] = 'U';
+  powerRow[70] = 'J';
+  level[11] = powerRow.join('');
+
+  // Add borders
+  for (let i = 0; i < height; i++) {
+    level[i] = '#' + level[i] + '#';
+  }
+  level[0] = '#'.repeat(width + 2);
+  level[height - 1] = '#'.repeat(width + 2);
 
   return level;
 }

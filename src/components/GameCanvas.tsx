@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { GameEngine, TILE_SIZE } from '../game/GameEngine';
+import { GameEngine, TILE_SIZE, AVATARS } from '../game/GameEngine';
 import { musicManager } from '../game/MusicManager';
 
 export const GameCanvas: React.FC = () => {
@@ -8,6 +8,7 @@ export const GameCanvas: React.FC = () => {
   const [playerConfig, setPlayerConfig] = useState(engine.state.playerConfig);
   const [gameStarted, setGameStarted] = useState(false);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
+  const [showShop, setShowShop] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [secretCode, setSecretCode] = useState('');
   const isPausedRef = useRef(isPaused);
@@ -589,6 +590,71 @@ export const GameCanvas: React.FC = () => {
           ctx.fillStyle = '#0000CD'; // Medium blue
           const bounceOffset = Math.sin(time / 100) * 2;
           ctx.fillRect(e.x, e.y + 4 + bounceOffset, e.w, 4);
+        } else if (e.type === 'red_boss') {
+          ctx.fillStyle = '#8B0000'; // Dark Red
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          ctx.fillStyle = '#FF0000'; // Red
+          ctx.fillRect(e.x + 4, e.y + 4, e.w - 8, e.h - 8);
+          // Fire eyes
+          const flicker = Math.sin(time / 5) * 4;
+          ctx.fillStyle = '#FFFF00';
+          ctx.fillRect(e.x + 16, e.y + 16, 16 + flicker, 16 + flicker);
+          ctx.fillRect(e.x + e.w - 32 - flicker, e.y + 16, 16 + flicker, 16 + flicker);
+          // HP Bar
+          if (e.hp !== undefined) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(e.x, e.y - 10, e.w, 6);
+            ctx.fillStyle = '#F00';
+            ctx.fillRect(e.x + 1, e.y - 9, (e.w - 2) * (e.hp / 25), 4);
+          }
+        } else if (e.type === 'purple_boss') {
+          ctx.fillStyle = '#4B0082'; // Indigo
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          ctx.fillStyle = '#9400D3'; // Dark Violet
+          ctx.fillRect(e.x + 4, e.y + 4, e.w - 8, e.h - 8);
+          // Void eyes
+          ctx.fillStyle = '#000';
+          ctx.beginPath();
+          ctx.arc(e.x + 24, e.y + 24, 12, 0, Math.PI * 2);
+          ctx.arc(e.x + e.w - 24, e.y + 24, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#FFF';
+          ctx.beginPath();
+          ctx.arc(e.x + 24, e.y + 24, 4, 0, Math.PI * 2);
+          ctx.arc(e.x + e.w - 24, e.y + 24, 4, 0, Math.PI * 2);
+          ctx.fill();
+          // HP Bar
+          if (e.hp !== undefined) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(e.x, e.y - 10, e.w, 6);
+            ctx.fillStyle = '#F00';
+            ctx.fillRect(e.x + 1, e.y - 9, (e.w - 2) * (e.hp / 30), 4);
+          }
+        } else if (e.type === 'silver_boss') {
+          ctx.fillStyle = '#708090'; // Slate Gray
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          ctx.fillStyle = '#C0C0C0'; // Silver
+          ctx.fillRect(e.x + 4, e.y + 4, e.w - 8, e.h - 8);
+          // Chrome eyes
+          ctx.fillStyle = '#00FFFF';
+          ctx.fillRect(e.x + 16, e.y + 16, 16, 8);
+          ctx.fillRect(e.x + e.w - 32, e.y + 16, 16, 8);
+          // HP Bar
+          if (e.hp !== undefined) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(e.x, e.y - 10, e.w, 6);
+            ctx.fillStyle = '#F00';
+            ctx.fillRect(e.x + 1, e.y - 9, (e.w - 2) * (e.hp / 35), 4);
+          }
+        } else if (e.type === 'tracking_projectile') {
+          ctx.fillStyle = '#FF4500';
+          ctx.beginPath();
+          ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#FFFF00';
+          ctx.beginPath();
+          ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/4, 0, Math.PI * 2);
+          ctx.fill();
         } else if (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss') {
           if (e.type === 'yellow_boss') {
             // Yellow Boss Redesign: Goldenrod, one large red eye, and horns
@@ -692,6 +758,34 @@ export const GameCanvas: React.FC = () => {
         ctx.fillStyle = state.playerConfig.color;
         ctx.fillRect(state.player.x, state.player.y, state.player.w, state.player.h);
         
+        // Avatar specific features
+        const avatar = AVATARS.find(a => a.id === state.currentAvatarId);
+        if (avatar?.type === 'cat') {
+          ctx.fillStyle = state.playerConfig.color;
+          // Left ear
+          ctx.beginPath();
+          ctx.moveTo(state.player.x, state.player.y);
+          ctx.lineTo(state.player.x + 6, state.player.y);
+          ctx.lineTo(state.player.x, state.player.y - 6);
+          ctx.fill();
+          // Right ear
+          ctx.beginPath();
+          ctx.moveTo(state.player.x + state.player.w, state.player.y);
+          ctx.lineTo(state.player.x + state.player.w - 6, state.player.y);
+          ctx.lineTo(state.player.x + state.player.w, state.player.y - 6);
+          ctx.fill();
+        } else if (avatar?.type === 'dog') {
+          ctx.fillStyle = state.playerConfig.color;
+          // Left floppy ear
+          ctx.fillRect(state.player.x - 4, state.player.y + 2, 6, 12);
+          // Right floppy ear
+          ctx.fillRect(state.player.x + state.player.w - 2, state.player.y + 2, 6, 12);
+        } else if (avatar?.type === 'ninja') {
+          // Mask
+          ctx.fillStyle = '#000';
+          ctx.fillRect(state.player.x, state.player.y + 8, state.player.w, 6);
+        }
+
         // Eyes
         ctx.fillStyle = '#FFF';
         const dir = state.player.vx < 0 ? -1 : 1;
@@ -774,6 +868,46 @@ export const GameCanvas: React.FC = () => {
         ctx.font = '16px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('YELLOW DEMON', 400, startY + 15);
+      }
+
+      // Draw Boss Rush bars
+      if (state.levelIndex >= 100) {
+        const boss = state.entities.find(e => 
+          !e.collected && (e.type === 'boss' || e.type === 'boss2' || e.type === 'green_boss' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss' || e.type === 'white_boss' || e.type === 'black_boss')
+        );
+        
+        if (boss && boss.hp !== undefined) {
+          const bossNames: {[key: string]: string} = {
+            'boss': 'IRON GUARDIAN',
+            'boss2': 'BLUE PHANTOM',
+            'green_boss': 'SLIME KING',
+            'red_boss': 'FIRE LORD',
+            'purple_boss': 'VOID STALKER',
+            'silver_boss': 'QUICKSILVER',
+            'white_boss': 'PALE WARRIOR',
+            'black_boss': 'BURNT GOD'
+          };
+          const maxHps: {[key: string]: number} = {
+            'boss': 5, 'boss2': 5, 'green_boss': 20, 'red_boss': 25, 'purple_boss': 30, 'silver_boss': 35, 'white_boss': 7, 'black_boss': 20
+          };
+          
+          const maxHp = maxHps[boss.type] || 20;
+          const barWidth = 400;
+          const barHeight = 20;
+          const startX = 400 - barWidth / 2;
+          const startY = 20;
+          
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(startX - 4, startY - 4, barWidth + 8, barHeight + 8);
+          ctx.fillStyle = '#555';
+          ctx.fillRect(startX, startY, barWidth, barHeight);
+          ctx.fillStyle = '#F00';
+          ctx.fillRect(startX, startY, barWidth * (boss.hp / maxHp), barHeight);
+          ctx.fillStyle = '#FFF';
+          ctx.font = '16px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(bossNames[boss.type] || 'BOSS', 400, startY + 15);
+        }
       }
 
       // Draw Level 21 Boss bars (Pale Warrior and Burnt God)
@@ -906,7 +1040,7 @@ export const GameCanvas: React.FC = () => {
             musicManager.stop();
           } else {
             const hasBoss = engine.state.entities.some(e => 
-              !e.collected && (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'boss2')
+              !e.collected && (e.type === 'boss' || e.type === 'green_boss' || e.type === 'yellow_boss' || e.type === 'boss2' || e.type === 'red_boss' || e.type === 'purple_boss' || e.type === 'silver_boss' || e.type === 'white_boss' || e.type === 'black_boss')
             );
             if (hasBoss) {
               musicManager.playState('boss');
@@ -983,7 +1117,7 @@ export const GameCanvas: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center bg-gray-900 border-4 border-gray-800 rounded shadow-2xl p-8 w-[800px] h-[480px]">
           <h2 className="text-3xl font-bold text-white mb-8 font-mono">Select Level</h2>
-          <div className="grid grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-5 gap-4 mb-4">
             {Array.from({ length: 20 }).map((_, i) => (
               <button
                 key={i}
@@ -998,6 +1132,16 @@ export const GameCanvas: React.FC = () => {
               </button>
             ))}
           </div>
+          <button
+            className="w-full py-3 bg-red-700 text-white font-mono font-bold text-xl rounded hover:bg-red-600 transition-colors border-2 border-red-900 hover:border-red-500 mb-4 shadow-lg"
+            onClick={() => {
+              engine.loadLevel(100);
+              setGameStarted(true);
+              musicManager.init();
+            }}
+          >
+            BOSS RUSH MODE
+          </button>
           <div className="flex gap-4 mb-4">
             <input
               type="text"
@@ -1070,6 +1214,14 @@ export const GameCanvas: React.FC = () => {
             <h2 className="text-4xl font-bold text-white mb-8 font-mono">PAUSED</h2>
             <div className="flex flex-col gap-4">
               <button 
+                className="px-8 py-3 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors font-bold font-mono text-xl"
+                onClick={() => {
+                  setShowShop(true);
+                }}
+              >
+                Shop
+              </button>
+              <button 
                 className="px-8 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-bold font-mono text-xl"
                 onClick={() => {
                   setIsPaused(false);
@@ -1101,6 +1253,80 @@ export const GameCanvas: React.FC = () => {
                 Level Select
               </button>
             </div>
+          </div>
+        )}
+        {showShop && (
+          <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center rounded z-20 p-8">
+            <h2 className="text-3xl font-bold text-white mb-4 font-mono">AVATAR SHOP</h2>
+            <p className="text-yellow-500 font-mono mb-6">Current Score: {engine.state.score}</p>
+            <div className="grid grid-cols-2 gap-4 w-full max-w-2xl overflow-y-auto max-h-[300px] p-2">
+              {AVATARS.map(avatar => {
+                const isOwned = engine.state.ownedAvatarIds.includes(avatar.id);
+                const isSelected = engine.state.currentAvatarId === avatar.id;
+                return (
+                  <div key={avatar.id} className={`p-4 rounded border-2 ${isSelected ? 'border-yellow-500 bg-gray-800' : 'border-gray-700 bg-gray-900'} flex flex-col gap-2`}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 relative" style={{ backgroundColor: avatar.color }}>
+                        <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: avatar.headbandColor }}></div>
+                        {avatar.type === 'cat' && (
+                          <>
+                            <div className="absolute -top-2 left-0 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-bottom-[6px]" style={{ borderBottomColor: avatar.color }}></div>
+                            <div className="absolute -top-2 right-0 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-bottom-[6px]" style={{ borderBottomColor: avatar.color }}></div>
+                          </>
+                        )}
+                        {avatar.type === 'dog' && (
+                          <>
+                            <div className="absolute top-1 -left-2 w-2 h-6" style={{ backgroundColor: avatar.color }}></div>
+                            <div className="absolute top-1 -right-2 w-2 h-6" style={{ backgroundColor: avatar.color }}></div>
+                          </>
+                        )}
+                        {avatar.type === 'ninja' && (
+                          <div className="absolute top-3 left-0 w-full h-2 bg-black"></div>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-white font-bold font-mono">{avatar.name}</h3>
+                        <p className="text-xs text-gray-400 font-mono">{avatar.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-yellow-500 font-mono text-sm">{isOwned ? 'OWNED' : `Cost: ${avatar.cost}`}</span>
+                      {isOwned ? (
+                        <button 
+                          className={`px-3 py-1 rounded font-mono text-sm ${isSelected ? 'bg-gray-600 text-gray-400 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                          onClick={() => {
+                            if (!isSelected) {
+                              engine.selectAvatar(avatar.id);
+                              setPlayerConfig(engine.state.playerConfig);
+                            }
+                          }}
+                        >
+                          {isSelected ? 'SELECTED' : 'SELECT'}
+                        </button>
+                      ) : (
+                        <button 
+                          className={`px-3 py-1 rounded font-mono text-sm ${engine.state.score >= avatar.cost ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                          onClick={() => {
+                            if (engine.buyAvatar(avatar.id)) {
+                              // Force re-render
+                              setPlayerConfig({ ...engine.state.playerConfig });
+                            }
+                          }}
+                        >
+                          BUY
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button 
+              className="mt-8 px-8 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors font-bold font-mono"
+              onClick={() => setShowShop(false)}
+            >
+              Close Shop
+            </button>
           </div>
         )}
       </div>
